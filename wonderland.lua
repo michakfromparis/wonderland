@@ -4,7 +4,10 @@ Config = {
              "aduermael.selector", "aduermael.selector_disabled", "theosaurus.booni"}
 }
 
+-- ***************************************** UTILS ***************************************** 
+
 dump = function(obj)
+    print("[" .. tostring(obj) .. "]")
     for key, value in pairs(obj) do
         print("  " .. key .. ": ", value)
     end
@@ -52,14 +55,8 @@ Client.OnStart = function()
 
         booni.shape.OnCollision = function(o1, o2)
             print("shape col: ", o1, o2)
-            -- dump(o1)
-            -- dump(o2)
-            -- for key, value in pairs(o1) do
-            --     print("  " .. key .. ": ", value)
-            -- end
-            -- for key, value in pairs(o2) do
-            --     print("  " .. key .. ": ", value)
-            -- end
+            dump(o1)
+            dump(o2)
         end
 
         if player == "cpu" then
@@ -227,6 +224,75 @@ function updateSelectorShape(impact)
     selector.Position = Map:BlockToWorld(coords)
 end
 
+randomizeCat = function()
+    for k, booni in pairs(boonies) do
+        booni.isCat = false
+    end
+    booniIndex = math.random(1, number(#boonies))
+    -- print("setting player " .. booniIndex .. " of " .. #boonies .. " player")
+    if boonies[booniIndex] ~= nil then
+        boonies[booniIndex].isCat = true
+    end
+    -- print(booni.player.username " is Cat!")
+    return booniIndex
+end
+
+checkForPlayers = function(dt)
+    if #boonies < 2 and dt % 50000 == 0 then
+        -- print("players count " .. #boonies)
+        -- print("waiting for players")
+
+    else
+        randomizeCat(boonies)
+    end
+end
+
+updateBoony = function(booni, name, dt)
+    if booni ~= nil then
+
+        booni.total1 = booni.total1 + dt
+        booni.total2 = booni.total2 + dt * 5.0
+        booni.total3 = booni.total3 + dt * 5.5
+
+        booni.pos = booni.pos + (booni.target - booni.pos) * 2.0 * dt
+        booni.upDownDelta = math.sin(booni.total1)
+
+        booni.shape.Position = booni.pos + {0, booni.upDownDelta, 0}
+
+        booni.shape.Scale.X = 0.4 + math.sin(booni.total2) * 0.03
+        booni.shape.Scale.Y = 0.4 + math.sin(booni.total3) * 0.03
+
+        if booni.chatBubbleRemainingTime > 0.0 then
+            booni.chatBubbleRemainingTime = booni.chatBubbleRemainingTime - dt
+            if booni.chatBubbleRemainingTime <= 0.0 then
+
+                booni.shape:ClearTextBubble()
+                booni.shape:TextBubble(booni.username, 86400, Color(255, 255, 255, 150), Color(255, 255, 255, 0), false)
+            end
+        end
+
+        if lockCamera == false then
+            if name == Player.ID then
+                local distance = booni.target - {0, 2, 0} - Player.Position
+                if distance.Length > 0.1 then
+
+                    local speed = ((booni.target - booni.pos) * 2.0).Length
+                    if speed < kCameraMinSpeed then
+                        speed = kCameraMinSpeed
+                    end
+
+                    if speed * dt > distance.Length then
+                        speed = distance.Length / dt
+                    end
+
+                    distance:Normalize()
+                    Player.Position = Player.Position + distance * speed * dt
+                end
+            end
+        end
+    end
+end
+
 Pointer.Down = function(e)
 
     lockCamera = true
@@ -299,84 +365,15 @@ Pointer.Up = function(e)
     end
 end
 
-randomizeCat = function()
-    for k, booni in pairs(boonies) do
-        booni.isCat = false
-    end
-    booniIndex = math.random(1, number(#boonies))
-    -- print("setting player " .. booniIndex .. " of " .. #boonies .. " player")
-    if boonies[booniIndex] ~= nil then
-        boonies[booniIndex].isCat = true
-    end
-    -- print(booni.player.username " is Cat!")
-    return booniIndex
-end
-
-checkForPlayers = function(dt)
-    if #boonies < 2 and dt % 50000 == 0 then
-        -- print("players count " .. #boonies)
-        -- print("waiting for players")
-
-    else
-        randomizeCat(boonies)
-    end
-end
-
-updateBoony = function(booni, name, dt)
-    if booni ~= nil then
-
-        booni.total1 = booni.total1 + dt
-        booni.total2 = booni.total2 + dt * 5.0
-        booni.total3 = booni.total3 + dt * 5.5
-
-        booni.pos = booni.pos + (booni.target - booni.pos) * 2.0 * dt
-        booni.upDownDelta = math.sin(booni.total1)
-
-        booni.shape.Position = booni.pos + {0, booni.upDownDelta, 0}
-
-        booni.shape.Scale.X = 0.4 + math.sin(booni.total2) * 0.03
-        booni.shape.Scale.Y = 0.4 + math.sin(booni.total3) * 0.03
-
-        if booni.chatBubbleRemainingTime > 0.0 then
-            booni.chatBubbleRemainingTime = booni.chatBubbleRemainingTime - dt
-            if booni.chatBubbleRemainingTime <= 0.0 then
-
-                booni.shape:ClearTextBubble()
-                booni.shape:TextBubble(booni.username, 86400, Color(255, 255, 255, 150), Color(255, 255, 255, 0), false)
-            end
-        end
-
-        if lockCamera == false then
-            if name == Player.ID then
-                local distance = booni.target - {0, 2, 0} - Player.Position
-                if distance.Length > 0.1 then
-
-                    local speed = ((booni.target - booni.pos) * 2.0).Length
-                    if speed < kCameraMinSpeed then
-                        speed = kCameraMinSpeed
-                    end
-
-                    if speed * dt > distance.Length then
-                        speed = distance.Length / dt
-                    end
-
-                    distance:Normalize()
-                    Player.Position = Player.Position + distance * speed * dt
-                end
-            end
-        end
-    end
-end
-
 Client.Tick = function(dt)
 
     checkForPlayers(dt)
     for name, booni in pairs(boonies) do
         updateBoony(booni, name, dt)
     end
-    -- for name, booni in pairs(cpuBoonies) do
-    --     updateBoony(booni, name, dt)
-    -- end
+    for name, booni in pairs(cpuBoonies) do
+        updateBoony(booni, name, dt)
+    end
 end
 
 Client.OnChat = function(msg)
