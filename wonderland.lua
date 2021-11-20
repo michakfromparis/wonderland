@@ -17,135 +17,65 @@ settings = {
     }
 }
 
-Client.OnStart = function()
+state = {
+    coll = {
+        hitBlockCoords = nil,
+        hitBlockFace = nil
+    }
+}
+function newBooni(player)
 
-    TimeCycle.On = settings.map.timeCycle
-    Dev.DisplayColliders = true
+    local booni = {}
+    booni.shape = Shape(Items.theosaurus.booni)
+    booni.shape.Pivot.Y = 0
+    booni.pos = Number3(362.5, 292.5 + settings.camera.altitude * Map.Scale.Y, 157.5)
+    booni.target = booni.pos
 
-    glowCollisionGroup = CollisionGroups(3)
-    Player.CollidesWithGroups = Map.CollisionGroups + Player.CollisionGroups + glowCollisionGroup
-    Player.OnCollision = function(o1, o2)
-        print("player col: ", o1, o2)
+    booni.anim = {}
+    booni.anim.move = Number3(0, 0, 0)
+    booni.anim.scale = Number3(0, 0, 0)
+
+    booni.shape.Scale = 0.4
+    World:AddChild(booni.shape)
+    booni.shape.Position = booni.pos
+    booni.Physics = true
+
+    booni.CollisionGroups = Player.CollisionGroups
+
+    booni.shape.OnCollision = function(o1, o2)
+        print("shape col: ", o1, o2)
         dump(o1)
         dump(o2)
     end
 
-    boonies = {}
-    cpuBoonies = {}
-    glows = newGlows(200, 0.42)
-    ui = newUI()
-
-    function newBooni(player)
-
-        local booni = {}
-
-        booni.total1 = 0.0
-        booni.total2 = 0.0
-        booni.total3 = 0.0
-
-        booni.pos = Number3(362.5, 292.5 + settings.camera.altitude * Map.Scale.Y, 157.5)
-        booni.target = booni.pos
-        booni.upDownDelta = 0.0
-
-        booni.shape = Shape(Items.theosaurus.booni)
-        booni.shape.Pivot.Y = 0
-        booni.shape.Scale = 0.4
-        World:AddChild(booni.shape)
-        booni.shape.Position = booni.pos
-        booni.Physics = true
-
-        booni.CollisionGroups = Player.CollisionGroups
-
-        booni.shape.OnCollision = function(o1, o2)
-            print("shape col: ", o1, o2)
-            dump(o1)
-            dump(o2)
-        end
-
-        if player == "cpu" then
-            cpuBoonies[#cpuBoonies + 1] = booni
-            booni.username = "cpu #" .. #cpuBoonies
-            print(booni.username .. " has entered the tag")
-        else
-            boonies[player.ID] = booni
-            booni.username = player.Username
-        end
-
-        booni.chatBubbleRemainingTime = 0.0
-        booni.shape:TextBubble(booni.username, 86400, Color(255, 255, 255, 150), Color(255, 255, 255, 0), false)
-
-        if player == Player then
-            Player.Position = booni.pos - {0, 2, 0}
-            Player.IsHidden = true
-        end
-        return booni
+    if player == "cpu" then
+        cpuBoonies[#cpuBoonies + 1] = booni
+        booni.username = "cpu #" .. #cpuBoonies
+        print(booni.username .. " has entered the tag")
+    else
+        boonies[player.ID] = booni
+        booni.username = player.Username
     end
 
-    function destroyBooni(playerID)
+    booni.chatBubbleRemainingTime = 0.0
+    booni.shape:TextBubble(booni.username, 86400, Color(255, 255, 255, 150), Color(255, 255, 255, 0), false)
 
-        local booni = boonies[playerID]
-
-        booni.shape:ClearTextBubble()
-        booni.shape:RemoveFromParent()
-        booni.shape = nil
-
-        boonies[playerID] = nil
+    if player == Player then
+        Player.Position = booni.pos - {0, 2, 0}
+        Player.IsHidden = true
     end
-
-    selector = Object()
-
-    selectorShape = Shape(Items.aduermael.selector)
-    selectorShape.Scale = 0.5
-    selectorShape.Pivot.Y = 0
-    selector:AddChild(selectorShape)
-    selectorShape.IsHidden = true
-
-    selectorShapeDisabled = Shape(Items.aduermael.selector_disabled)
-    selectorShapeDisabled.Scale = 0.5
-    selectorShapeDisabled.Pivot.Y = 0
-    selector:AddChild(selectorShapeDisabled)
-    selectorShapeDisabled.IsHidden = true
-
-    World:AddChild(selector)
-
-    Pointer:Show()
-    UI.Crosshair = false
-
-    -- Using the Player object as a little trick 
-    -- to use the third person camera. 
-    -- It's still not possible to assign it to other objects...
-    -- An hidden player with a position that follows the one of the 
-    -- object allows to use the third person camera anyway. :p
-    Player.Physics = false
-    Player.IsHidden = true
-    -- Player.CollidesWithMask = 0
-    -- Player.CollisionGroupsMask = 0
-    World:AddChild(Player)
-
-    yaw = 0
-    pitch = 0
-
-    hitBlockCoords = nil
-    hitBlockFace = nil
-
-    lockCamera = false
-
-    newCPUBoonies(10)
+    return booni
 end
 
-newCPUBoonies = function(count)
-    for i = 1, count do
-        local booni = newBooni("cpu")
-        rx = math.random(0, Map.Width)
-        ry = Map.Height
-        rz = math.random(0, Map.Depth)
-        booni.pos = Number3(rx, ry, rz)
-        rx = math.random(0, Map.Width)
-        ry = Map.Height
-        rz = math.random(0, Map.Depth)
-        booni.target = Number3(rx, ry, rz)
-        cpuBoonies[i] = booni
-    end
+function destroyBooni(playerID)
+
+    local booni = boonies[playerID]
+
+    booni.shape:ClearTextBubble()
+    booni.shape:RemoveFromParent()
+    booni.shape = nil
+
+    boonies[playerID] = nil
 end
 
 newGlows = function(count, size)
@@ -185,6 +115,52 @@ newGlows = function(count, size)
     return glows
 end
 
+Client.OnStart = function()
+
+    TimeCycle.On = settings.map.timeCycle
+    Dev.DisplayColliders = settings.debug.showColliders
+
+    glowCollisionGroup = CollisionGroups(3)
+    Player.Physics = false
+    Player.IsHidden = true
+    -- Player.CollidesWithMask = 0
+    -- Player.CollisionGroupsMask = 0
+    Player.CollidesWithGroups = Map.CollisionGroups + Player.CollisionGroups + glowCollisionGroup
+    Player.OnCollision = function(o1, o2)
+        print("player col: ", o1, o2)
+        dump(o1)
+        dump(o2)
+    end
+    World:AddChild(Player)
+
+    boonies = {}
+    cpuBoonies = {}
+    glows = newGlows(200, 0.42)
+    ui = newUI()
+
+    yaw = 0
+    pitch = 0
+
+    lockCamera = false
+
+    newCPUBoonies(10)
+end
+
+newCPUBoonies = function(count)
+    for i = 1, count do
+        local booni = newBooni("cpu")
+        rx = math.random(0, Map.Width)
+        ry = Map.Height
+        rz = math.random(0, Map.Depth)
+        booni.pos = Number3(rx, ry, rz)
+        rx = math.random(0, Map.Width)
+        ry = Map.Height
+        rz = math.random(0, Map.Depth)
+        booni.target = Number3(rx, ry, rz)
+        cpuBoonies[i] = booni
+    end
+end
+
 newUI = function()
     local cameraDistance = 100
     local ui = {}
@@ -194,32 +170,48 @@ newUI = function()
     ui.go.Position = Camera.Position - Camera.Forward * cameraDistance * 100
     Camera:AddChild(ui.waiting)
     Camera:AddChild(ui.go)
+
+    selector = Object()
+    selectorShape = Shape(Items.aduermael.selector)
+    selectorShape.Scale = 0.5
+    selectorShape.Pivot.Y = 0
+    selector:AddChild(selectorShape)
+    selectorShape.IsHidden = true
+    selectorShapeDisabled = Shape(Items.aduermael.selector_disabled)
+    selectorShapeDisabled.Scale = 0.5
+    selectorShapeDisabled.Pivot.Y = 0
+    selector:AddChild(selectorShapeDisabled)
+    selectorShapeDisabled.IsHidden = true
+    World:AddChild(selector)
+    Pointer:Show()
+    UI.Crosshair = false
+
     return ui
 end
 
 function updateSelectorShape(impact)
     selectorShape.IsHidden = false
 
-    hitBlockCoords = impact.Block.Coords
-    hitBlockFace = impact.FaceTouched
+    state.coll.hitBlockCoords = impact.Block.Coords
+    state.coll.hitBlockFace = impact.FaceTouched
 
-    local coords = hitBlockCoords
-    if hitBlockFace == BlockFace.Top then
+    local coords = state.coll.hitBlockCoords
+    if state.coll.hitBlockFace == BlockFace.Top then
         coords = coords + {0.5, 1.0, 0.5}
         selectorShape.Rotation = {0, 0, 0}
-    elseif hitBlockFace == BlockFace.Bottom then
+    elseif state.coll.hitBlockFace == BlockFace.Bottom then
         coords = coords + {0.5, 0.0, 0.5}
         selectorShape.Rotation = {math.pi, 0, 0}
-    elseif hitBlockFace == BlockFace.Left then
+    elseif state.coll.hitBlockFace == BlockFace.Left then
         coords = coords + {0, 0.5, 0.5}
         selectorShape.Rotation = {0, 0, math.pi * 0.5}
-    elseif hitBlockFace == BlockFace.Right then
+    elseif state.coll.hitBlockFace == BlockFace.Right then
         coords = coords + {1.0, 0.5, 0.5}
         selectorShape.Rotation = {0, 0, math.pi * -0.5}
-    elseif hitBlockFace == BlockFace.Front then
+    elseif state.coll.hitBlockFace == BlockFace.Front then
         coords = coords + {0.5, 0.5, 0.0}
         selectorShape.Rotation = {math.pi * -0.5, 0, 0}
-    elseif hitBlockFace == BlockFace.Back then
+    elseif state.coll.hitBlockFace == BlockFace.Back then
         coords = coords + {0.5, 0.5, 1.0}
         selectorShape.Rotation = {math.pi * 0.5, 0, 0}
     end
@@ -253,17 +245,15 @@ end
 updateBoony = function(booni, name, dt)
     if booni ~= nil then
 
-        booni.total1 = booni.total1 + dt
-        booni.total2 = booni.total2 + dt * 5.0
-        booni.total3 = booni.total3 + dt * 5.5
+        booni.anim.move.Y = booni.anim.move.Y + dt
+        booni.anim.scale.X = booni.anim.scale.X + dt * 5.0
+        booni.anim.scale.Y = booni.anim.scale.Y + dt * 5.5
 
         booni.pos = booni.pos + (booni.target - booni.pos) * 2.0 * dt
-        booni.upDownDelta = math.sin(booni.total1)
 
-        booni.shape.Position = booni.pos + {0, booni.upDownDelta, 0}
-
-        booni.shape.Scale.X = 0.4 + math.sin(booni.total2) * 0.03
-        booni.shape.Scale.Y = 0.4 + math.sin(booni.total3) * 0.03
+        booni.shape.Position = booni.pos + {0, math.sin(booni.anim.move.Y), 0}
+        booni.shape.Scale.X = 0.4 + math.sin(booni.anim.scale.X) * 0.03
+        booni.shape.Scale.Y = 0.4 + math.sin(booni.anim.scale.Y) * 0.03
 
         if booni.chatBubbleRemainingTime > 0.0 then
             booni.chatBubbleRemainingTime = booni.chatBubbleRemainingTime - dt
@@ -315,7 +305,7 @@ Pointer.Drag = function(e)
     local impact = e:CastRay(Map.CollisionGroups)
     if impact.Block ~= nil then
         updateSelectorShape(impact)
-        if hitBlockCoords == impact.Block.Coords and hitBlockFace == impact.FaceTouched then
+        if state.coll.hitBlockCoords == impact.Block.Coords and state.coll.hitBlockFace == impact.FaceTouched then
             selectorShape.IsHidden = false
             selectorShapeDisabled.IsHidden = true
         else
@@ -337,20 +327,20 @@ Pointer.Up = function(e)
 
     local impact = e:CastRay(Map.CollisionGroups)
     if impact.Block ~= nil then
-        if impact.Block.Coords == hitBlockCoords and impact.FaceTouched == hitBlockFace then
+        if impact.Block.Coords == state.coll.hitBlockCoords and impact.FaceTouched == state.coll.hitBlockFace then
 
-            local coords = hitBlockCoords
-            if hitBlockFace == BlockFace.Top then
+            local coords = state.coll.hitBlockCoords
+            if state.coll.hitBlockFace == BlockFace.Top then
                 coords = coords + {0.5, 1.5, 0.5}
-            elseif hitBlockFace == BlockFace.Bottom then
+            elseif state.coll.hitBlockFace == BlockFace.Bottom then
                 coords = coords + {0.5, -0.5, 0.5}
-            elseif hitBlockFace == BlockFace.Left then
+            elseif state.coll.hitBlockFace == BlockFace.Left then
                 coords = coords + {-0.5, 0.5, 0.5}
-            elseif hitBlockFace == BlockFace.Right then
+            elseif state.coll.hitBlockFace == BlockFace.Right then
                 coords = coords + {1.5, 0.5, 0.5}
-            elseif hitBlockFace == BlockFace.Front then
+            elseif state.coll.hitBlockFace == BlockFace.Front then
                 coords = coords + {0.5, 0.5, -0.5}
-            elseif hitBlockFace == BlockFace.Back then
+            elseif state.coll.hitBlockFace == BlockFace.Back then
                 coords = coords + {0.5, 0.5, 1.5}
             end
 
