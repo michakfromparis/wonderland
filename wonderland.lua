@@ -10,7 +10,8 @@ settings = {
     },
     camera = {
         altitude = 5,
-        minSpeed = 60.0
+        minSpeed = 60.0,
+        lock = false
     },
     map = {
         timeCycle = false
@@ -21,8 +22,50 @@ state = {
     coll = {
         hitBlockCoords = nil,
         hitBlockFace = nil
+    },
+    player = {
+        yaw = 0,
+        pitch = 0
     }
 }
+
+Client.OnStart = function()
+
+    TimeCycle.On = settings.map.timeCycle
+    Dev.DisplayColliders = settings.debug.showColliders
+    newPlayer()
+    boonies = {}
+    cpuBoonies = {}
+    glows = newGlows(200, 0.42)
+    ui = newUI()
+    newCPUBoonies(10)
+end
+
+Client.Tick = function(dt)
+    checkForPlayers(dt)
+    for name, booni in pairs(boonies) do
+        updateBoony(booni, name, dt)
+    end
+    for name, booni in pairs(cpuBoonies) do
+        updateBoony(booni, name, dt)
+    end
+end
+
+function newPlayer()
+    glowCollisionGroup = CollisionGroups(3)
+    Player.Physics = false
+    Player.IsHidden = true
+    -- Player.CollidesWithMask = 0
+    -- Player.CollisionGroupsMask = 0
+    Player.CollidesWithGroups = Map.CollisionGroups + Player.CollisionGroups + glowCollisionGroup
+    Player.OnCollision = function(o1, o2)
+        print("player col: ", o1, o2)
+        dump(o1)
+        dump(o2)
+    end
+    World:AddChild(Player)
+end
+
 function newBooni(player)
 
     local booni = {}
@@ -84,14 +127,8 @@ newGlows = function(count, size)
         local cube = Shape(Items.michak.cube_red)
         local glow = Shape(Items.michak.glow)
         cube.OnCollision = function(o1, o2)
-            -- print("cube collision detected between", o1, "and", o2)
         end
         glow.OnCollision = function(o1, o2)
-            -- o2:TextBubble("+1", 86400, Color(255, 255, 255, 150), Color(255, 255, 255, 0), false)
-            -- print("glow collision detected between", o1, "and", o2)
-            -- print("glow " .. o1)
-            -- print("other " .. o2)
-
         end
 
         glow.scale = size / 4
@@ -115,37 +152,6 @@ newGlows = function(count, size)
     return glows
 end
 
-Client.OnStart = function()
-
-    TimeCycle.On = settings.map.timeCycle
-    Dev.DisplayColliders = settings.debug.showColliders
-
-    glowCollisionGroup = CollisionGroups(3)
-    Player.Physics = false
-    Player.IsHidden = true
-    -- Player.CollidesWithMask = 0
-    -- Player.CollisionGroupsMask = 0
-    Player.CollidesWithGroups = Map.CollisionGroups + Player.CollisionGroups + glowCollisionGroup
-    Player.OnCollision = function(o1, o2)
-        print("player col: ", o1, o2)
-        dump(o1)
-        dump(o2)
-    end
-    World:AddChild(Player)
-
-    boonies = {}
-    cpuBoonies = {}
-    glows = newGlows(200, 0.42)
-    ui = newUI()
-
-    yaw = 0
-    pitch = 0
-
-    lockCamera = false
-
-    newCPUBoonies(10)
-end
-
 newCPUBoonies = function(count)
     for i = 1, count do
         local booni = newBooni("cpu")
@@ -167,7 +173,7 @@ newUI = function()
     ui.waiting = Shape(Items.michak.waiting)
     ui.go = Shape(Items.michak.go)
     ui.waiting.Position = Camera.Position - Camera.Forward * cameraDistance
-    ui.go.Position = Camera.Position - Camera.Forward * cameraDistance * 100
+    ui.go.Position = Camera.Position - Camera.Forward * cameraDistance
     Camera:AddChild(ui.waiting)
     Camera:AddChild(ui.go)
 
@@ -264,7 +270,7 @@ updateBoony = function(booni, name, dt)
             end
         end
 
-        if lockCamera == false then
+        if settings.camera.lock == false then
             if name == Player.ID then
                 local distance = booni.target - {0, 2, 0} - Player.Position
                 if distance.Length > 0.1 then
@@ -286,9 +292,11 @@ updateBoony = function(booni, name, dt)
     end
 end
 
+-- ******************************** INPUT *************************************
+
 Pointer.Down = function(e)
 
-    lockCamera = true
+    settings.camera.lock = true
 
     local impact = e:CastRay(Map.CollisionGroups)
     if impact.Block ~= nil then
@@ -298,9 +306,9 @@ end
 
 Pointer.Drag = function(e)
 
-    yaw = yaw + e.DX * 0.01
-    pitch = pitch - e.DY * 0.01
-    Player.Rotation = {pitch, yaw, 0}
+    state.player.yaw = state.player.yaw + e.DX * 0.01
+    state.player.pitch = state.player.pitch - e.DY * 0.01
+    Player.Rotation = {state.player.pitch, state.player.yaw, 0}
 
     local impact = e:CastRay(Map.CollisionGroups)
     if impact.Block ~= nil then
@@ -317,7 +325,7 @@ end
 
 Pointer.Up = function(e)
 
-    lockCamera = false
+    settings.camera.lock = false
     selectorShape.IsHidden = true
     selectorShapeDisabled.IsHidden = true
 
@@ -358,16 +366,7 @@ Pointer.Up = function(e)
     end
 end
 
-Client.Tick = function(dt)
-
-    checkForPlayers(dt)
-    for name, booni in pairs(boonies) do
-        updateBoony(booni, name, dt)
-    end
-    for name, booni in pairs(cpuBoonies) do
-        updateBoony(booni, name, dt)
-    end
-end
+-- ******************************* NETWORK ************************************
 
 Client.OnChat = function(msg)
     local e = Event()
