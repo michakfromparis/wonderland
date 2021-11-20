@@ -4,22 +4,24 @@ Config = {
              "aduermael.selector", "aduermael.selector_disabled", "theosaurus.booni"}
 }
 
--- ***************************************** UTILS ***************************************** 
-
-dump = function(obj)
-    print("[" .. tostring(obj) .. "]")
-    for key, value in pairs(obj) do
-        print("  " .. key .. ": ", value)
-    end
-end
+settings = {
+    debug = {
+        showColliders = true
+    },
+    camera = {
+        altitude = 5,
+        minSpeed = 60.0
+    },
+    map = {
+        timeCycle = false
+    }
+}
 
 Client.OnStart = function()
 
-    kDistanceAboveGround = 5
-    kCameraMinSpeed = 60.0
-    TimeCycle.On = false
-
+    TimeCycle.On = settings.map.timeCycle
     Dev.DisplayColliders = true
+
     glowCollisionGroup = CollisionGroups(3)
     Player.CollidesWithGroups = Map.CollisionGroups + Player.CollisionGroups + glowCollisionGroup
     Player.OnCollision = function(o1, o2)
@@ -32,6 +34,7 @@ Client.OnStart = function()
     cpuBoonies = {}
     glows = newGlows(200, 0.42)
     ui = newUI()
+
     function newBooni(player)
 
         local booni = {}
@@ -40,7 +43,7 @@ Client.OnStart = function()
         booni.total2 = 0.0
         booni.total3 = 0.0
 
-        booni.pos = Number3(362.5, 292.5 + kDistanceAboveGround * Map.Scale.Y, 157.5)
+        booni.pos = Number3(362.5, 292.5 + settings.camera.altitude * Map.Scale.Y, 157.5)
         booni.target = booni.pos
         booni.upDownDelta = 0.0
 
@@ -277,8 +280,8 @@ updateBoony = function(booni, name, dt)
                 if distance.Length > 0.1 then
 
                     local speed = ((booni.target - booni.pos) * 2.0).Length
-                    if speed < kCameraMinSpeed then
-                        speed = kCameraMinSpeed
+                    if speed < settings.camera.minSpeed then
+                        speed = settings.camera.minSpeed
                     end
 
                     if speed * dt > distance.Length then
@@ -432,5 +435,14 @@ Client.DidReceiveEvent = function(e)
         booni.shape:TextBubble(e.msg, 86400, Color(0, 0, 0, 255), Color(255, 255, 255, 255), true)
 
         print(e.Sender.Username .. ": " .. e.msg)
+    end
+end
+
+-- ***************************************** UTILS ***************************************** 
+
+dump = function(obj)
+    print("[" .. tostring(obj) .. "]")
+    for key, value in pairs(obj) do
+        print("  " .. key .. ": ", value)
     end
 end
