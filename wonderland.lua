@@ -67,10 +67,11 @@ Client.Tick = function(dt)
     for name, booni in pairs(cpuBoonies) do
         updateBooni(booni, name, dt)
     end
-    -- Camera.SetModeThirdPerson()
     if playerBooni ~= mil then
-        Camera:FitToScreen(playerBooni.shape, 0.1, true)
-        Camera.DistanceFromTarget = 10
+        Camera.SetModeThirdPerson()
+        -- Camera:FitToScreen(playerBooni.shape, 0.1, true)
+        Camera.distanceFromTarget = playerBooni.score * 0.1
+        Camera.DistanceFromTarget = playerBooni.score * 0.1
     end
 end
 
