@@ -1,7 +1,7 @@
 Config = {
     Map = "aduermael.hills",
-    Items = {"michak.cube_white", "michak.cube_red", "michak.glow", "michak.go", "michak.waiting", "aduermael.booni",
-             "aduermael.selector", "aduermael.selector_disabled", "theosaurus.booni"}
+    Items = {"michak.grid", "michak.cube_white", "michak.cube_red", "michak.glow", "michak.go", "michak.waiting",
+             "aduermael.booni", "aduermael.selector", "aduermael.selector_disabled", "theosaurus.booni"}
 }
 
 -- ******************************* SETTINGS ***********************************
@@ -44,13 +44,7 @@ state = {
 -- ******************************* HOOKS **************************************
 
 Client.OnStart = function()
-
-    TimeCycle.On = settings.map.timeCycle
-    Dev.DisplayColliders = settings.debug.showColliders
-    glowCollisionGroup = CollisionGroups(3)
-    Player.Physics = settings.player.physics
-    Player.IsHidden = settings.player.hidden
-    World:AddChild(Player)
+    initialize()
     boonies = {}
     cpuBoonies = {}
     glows = newGlows(200, 0.42)
@@ -64,28 +58,44 @@ Client.Tick = function(dt)
     for name, booni in pairs(boonies) do
         updateBooni(booni, name, dt)
     end
-    for name, booni in pairs(cpuBoonies) do
-        updateBooni(booni, name, dt)
+    for index, booni in ipairs(cpuBoonies) do
+        updateBooni(booni, index, dt)
     end
     if playerBooni ~= mil then
-        Camera.SetModeThirdPerson()
-        -- Camera:FitToScreen(playerBooni.shape, 0.1, true)
-        Camera.distanceFromTarget = playerBooni.score * 0.1
-        Camera.DistanceFromTarget = playerBooni.score * 0.1
+        -- Camera.SetModeThirdPerson()
+        local distance = 100
+        -- Camera:SetModeSatellite(Camera, Player, 10)
+        Camera.Rotation = {state.player.pitch, state.player.yaw, 0}
+        -- Camera.distanceFromTarget = playerBooni.score * 0.1
+        -- Camera.DistanceFromTarget = playerBooni.score * 0.1
+        Camera:FitToScreen(Player, 0.01, true)
     end
 end
 
--- ******************************* PLAYER **************************************
+-- ******************************* INIT ***************************************
 
-function newPlayer()
-    print("new Player")
-    glowCollisionGroup = CollisionGroups(3)
+function initialize()
+    TimeCycle.On = settings.map.timeCycle
+    Dev.DisplayColliders = settings.debug.showColliders
     Player.Physics = settings.player.physics
     Player.IsHidden = settings.player.hidden
-    -- Player.CollidesWithMask = 0
-    -- Player.CollisionGroupsMask = 0
-    Player.CollidesWithGroups = Map.CollisionGroups + Player.CollisionGroups + glowCollisionGroup
+    World:AddChild(Shape(Items.michak.grid))
     World:AddChild(Player)
+end
+
+-- ******************************* COLLISIONS *********************************
+
+function booniCollidedWithGlow(booni, glow)
+    if booni ~= nil then
+        print("booni", booni)
+        dump(booni)
+        booni.score = booni.score + settings.score.glow
+        print("booni score: ", booni.score)
+    else
+        print("Error: No booni")
+    end
+    glow.Position = randomPosition()
+
 end
 
 -- ******************************* BOONI **************************************
@@ -113,15 +123,7 @@ function newBooni(player)
 
     booni.shape.booni = booni
     booni.shape.OnCollision = function(o1, o2)
-        if o1.booni ~= nil then
-            print("booni", o1.booni)
-            dump(o1.booni)
-            o1.booni.score = o1.booni.score + settings.score.glow
-            print("booni score: ", o1.booni.score)
-        else
-            print("Error: No booni")
-        end
-        o2.Position = randomPosition()
+        booniCollidedWithGlow(o1.booni, o2)
     end
 
     booni.OnCollision = function(o1, o2)
@@ -202,24 +204,25 @@ updateBooni = function(booni, name, dt)
             end
         end
 
-        if settings.camera.lock == false then
-            if name == Player.ID then
-                local distance = booni.target - {0, 2, 0} - Player.Position
-                if distance.Length > 0.1 then
+        -- if settings.camera.lock == false then
+        if name == Player.ID then
+            Player.Position = booni.pos
+            -- local distance = booni.target - {0, 2, 0} - Player.Position
+            -- if distance.Length > 0.1 then
 
-                    local speed = ((booni.target - booni.pos) * 2.0).Length
-                    if speed < settings.camera.minSpeed then
-                        speed = settings.camera.minSpeed
-                    end
+            --     local speed = ((booni.target - booni.pos) * 2.0).Length
+            --     if speed < settings.camera.minSpeed then
+            --         speed = settings.camera.minSpeed
+            --     end
 
-                    if speed * dt > distance.Length then
-                        speed = distance.Length / dt
-                    end
+            --     if speed * dt > distance.Length then
+            --         speed = distance.Length / dt
+            --     end
 
-                    distance:Normalize()
-                    Player.Position = Player.Position + distance * speed * dt
-                end
-            end
+            --     distance:Normalize()
+            --     Player.Position = Player.Position + distance * speed * dt
+            -- end
+            -- end
         end
     end
 end
@@ -361,6 +364,7 @@ Client.OnPlayerJoin = function(player)
     print(player.Username .. "! Run for your life!")
     local booni = newBooni(player)
     if playerBooni == nil then
+        playerBooni.score = 0
         playerBooni = booni
     end
 end
@@ -422,6 +426,8 @@ dump = function(obj)
 end
 
 function randomPosition()
+    -- return Number3(math.random(0, Map.Width * Map.Scale.X), 292.5 + settings.camera.altitude * Map.Scale.Y,
+    --     math.random(0, Map.Depth * Map.Scale.Z))
     return Number3(math.random(0, Map.Width), math.random(0, Map.Height), math.random(0, Map.Depth))
 end
 
