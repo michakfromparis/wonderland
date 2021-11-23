@@ -519,10 +519,27 @@ dump = function(obj)
     end
 end
 
-function concatTables(t1, t2)
-    local t = {unpack(t1)}
-    for i = 1, #t2 do
-        t[#t1 + i] = t2[i]
+function log(...)
+    if settings.debug.logEnabled then
+        print(...)
+    end
+end
+
+function logError(...)
+    log(...)
+end
+
+function arrayConcat(...)
+    local t = {}
+    for n = 1, select("#", ...) do
+        local arg = select(n, ...)
+        if type(arg) == "table" then
+            for _, v in ipairs(arg) do
+                t[#t + 1] = v
+            end
+        else
+            t[#t + 1] = arg
+        end
     end
     return t
 end
