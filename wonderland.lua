@@ -41,7 +41,7 @@ state = {
     }
 }
 
--- ******************************* HOOKS **************************************
+-- ******************************* ENUMS **************************************
 
 CameraMode {
     Player = 1,
@@ -61,7 +61,7 @@ end
 
 Client.Tick = function(dt)
     checkForPlayers(dt)
-    updatePlayersList()
+    updateUI()
     for name, booni in pairs(boonies) do
         updateBooni(booni, name, dt)
     end
@@ -247,7 +247,7 @@ function updateBooniAI(booni, index, dt)
     booni.ai.idleTime = booni.ai.idleTime - dt
 end
 
--- ******************************* Glow **************************************
+-- ******************************* GLOW **************************************
 
 function newGlows(count, size)
     glows = {}
@@ -464,18 +464,20 @@ end
 
 function newPlayersList()
     playersListLabels = {}
-    for i = 1, 10 do
+    for i = 1, 16 do
         playersListLabels[i] = Label("❤❤❤", Anchor.Right, Anchor.Top)
     end
 end
 
 function updatePlayersList()
-    for i = 1, 10 do
-        playersListLabels[i].Text = "Player " .. i
+    local allBoonies = concatTables(boonies, cpuBoonies)
+    for i = 1, #allBoonies do
+        playersListLabels[i].Text = allBoonies[i].username
     end
 end
 
 function updateUI()
+    updatePlayersList()
 end
 
 function updateSelectorShape(impact)
@@ -517,9 +519,18 @@ dump = function(obj)
     end
 end
 
+function concatTables(t1, t2)
+    local t = {unpack(t1)}
+    for i = 1, #t2 do
+        t[#t1 + i] = t2[i]
+    end
+    return t
+end
+
 function randomPosition()
     -- return Number3(math.random(0, Map.Width), math.random(0, Map.Height), math.random(0, Map.Depth))
-    return Number3(math.random(0, Map.Width), Map.Height + settings.camera.altitude , math.random(0, Map.Depth)) * Map.Scale
+    return Number3(math.random(0, Map.Width), Map.Height + settings.camera.altitude, math.random(0, Map.Depth)) *
+               Map.Scale
 end
 
 function mapCenter()
