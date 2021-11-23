@@ -54,7 +54,7 @@ Client.OnStart = function()
     initialize()
     boonies = {}
     cpuBoonies = {}
-    glows = newGlows(200, 0.42)
+    glows = newGlows(200, 2.0)
     ui = newUI()
     newCPUBoonies(10)
 end
@@ -63,12 +63,16 @@ Client.Tick = function(dt)
     checkForPlayers(dt)
     updatePlayersList()
     for name, booni in pairs(boonies) do
-        updateBooniAI(booni, index, dt)
         updateBooni(booni, name, dt)
     end
     for index, booni in ipairs(cpuBoonies) do
         updateBooniAI(booni, index, dt)
         updateBooni(booni, index, dt)
+    end
+    if dt > 1 then
+        for i = 1, #glows do
+            glows[i].Physics = false
+        end
     end
     if playerBooni ~= mil then
         -- Camera.SetModeThirdPerson()
@@ -173,8 +177,6 @@ function newCPUBoonies(count)
         local booni = newBooni("cpu")
         -- booni.pos = randomPosition()
         booni.pos = Number3(362.5, i * 10.0 + 292.5 + settings.camera.altitude * Map.Scale.Y, 157.5)
-        booni.target = Number3(362.5, 292.5 + settings.camera.altitude * Map.Scale.Y, 157.5)
-
         booni.target = randomPosition()
         cpuBoonies[i] = booni
     end
@@ -238,8 +240,8 @@ end
 
 function updateBooniAI(booni, index, dt)
     if booni.ai.idleTime < 0 then
-        booni.target = randomPosition()
-        booni.target = Number3(math.random(0, Map.Width), Map.Height + 5, math.random(0, Map.Depth)) * Map.Scale
+        local targetGlowIndex = math.random(1, #glows)
+        booni.target = glows[targetGlowIndex].Position
         booni.ai.idleTime = 5
     end
     booni.ai.idleTime = booni.ai.idleTime - dt
@@ -257,11 +259,11 @@ function newGlows(count, size)
             -- print("glow col")
         end
         glow.key = i
-        glow.Scale = size * 1.7
+        glow.Scale = size
         glow.CollisionGroups = CollisionGroups(3)
         glow.CollidesWithGroups = Map.CollisionGroups + CollisionGroups(2)
         glow.Position = randomPosition()
-        Map:AddChild(glow)
+        World:AddChild(glow)
         -- cube.Scale = size
         -- cube.CollisionGroups = CollisionGroups(3)
         -- cube.CollidesWithGroups = Map.CollisionGroups + CollisionGroups(2)
@@ -516,9 +518,8 @@ dump = function(obj)
 end
 
 function randomPosition()
-    -- return Number3(math.random(0, Map.Width * Map.Scale.X), 292.5 + settings.camera.altitude * Map.Scale.Y,
-    --     math.random(0, Map.Depth * Map.Scale.Z))
-    return Number3(math.random(0, Map.Width), math.random(0, Map.Height), math.random(0, Map.Depth))
+    -- return Number3(math.random(0, Map.Width), math.random(0, Map.Height), math.random(0, Map.Depth))
+    return Number3(math.random(0, Map.Width), Map.Height + settings.camera.altitude , math.random(0, Map.Depth)) * Map.Scale
 end
 
 function mapCenter()
