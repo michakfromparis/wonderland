@@ -49,7 +49,7 @@ Client.OnStart = function()
     cpuBoonies = {}
     glows = newGlows(200, 0.42)
     ui = newUI()
-    newCPUBoonies(10)
+    newCPUBoonies(100)
 end
 
 Client.Tick = function(dt)
@@ -159,14 +159,8 @@ end
 function newCPUBoonies(count)
     for i = 1, count do
         local booni = newBooni("cpu")
-        rx = math.random(0, Map.Width)
-        ry = Map.Height
-        rz = math.random(0, Map.Depth)
-        booni.pos = Number3(rx, ry, rz)
-        rx = math.random(0, Map.Width)
-        ry = Map.Height
-        rz = math.random(0, Map.Depth)
-        booni.target = Number3(rx, ry, rz)
+        booni.pos = randomPosition()
+        booni.target = randomPosition()
         cpuBoonies[i] = booni
     end
 end
@@ -364,8 +358,8 @@ Client.OnPlayerJoin = function(player)
     print(player.Username .. "! Run for your life!")
     local booni = newBooni(player)
     if playerBooni == nil then
-        playerBooni.score = 0
         playerBooni = booni
+        playerBooni.score = 0
     end
 end
 
@@ -459,6 +453,9 @@ function newUI()
     UI.Crosshair = false
     newPlayersList()
     return ui
+end
+
+function updateUI()
 end
 
 function updateSelectorShape(impact)
