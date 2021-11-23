@@ -43,22 +43,31 @@ state = {
 
 -- ******************************* HOOKS **************************************
 
+CameraMode {
+    Player = 1,
+    Top
+}
+
+-- ******************************* HOOKS **************************************
+
 Client.OnStart = function()
     initialize()
     boonies = {}
     cpuBoonies = {}
     glows = newGlows(200, 0.42)
     ui = newUI()
-    newCPUBoonies(100)
+    newCPUBoonies(10)
 end
 
 Client.Tick = function(dt)
     checkForPlayers(dt)
     updatePlayersList()
     for name, booni in pairs(boonies) do
+        updateBooniAI(booni, index, dt)
         updateBooni(booni, name, dt)
     end
     for index, booni in ipairs(cpuBoonies) do
+        updateBooniAI(booni, index, dt)
         updateBooni(booni, index, dt)
     end
     if playerBooni ~= mil then
@@ -103,6 +112,9 @@ end
 function newBooni(player)
     print("new Booni")
     local booni = {}
+    booni.ai = {
+        idleTime = 5
+    }
     booni.score = 0
     booni.shape = Shape(Items.theosaurus.booni)
     booni.shape.Pivot.Y = 0
@@ -150,7 +162,7 @@ function newBooni(player)
     booni.shape:TextBubble(booni.username, 86400, Color(255, 255, 255, 150), Color(255, 255, 255, 0), false)
 
     if player == Player then
-        Player.Position = booni.pos - {0, 2, 0}
+        Player.Position = booni.pos
         Player.IsHidden = settings.player.hidden
     end
     return booni
@@ -159,7 +171,10 @@ end
 function newCPUBoonies(count)
     for i = 1, count do
         local booni = newBooni("cpu")
-        booni.pos = randomPosition()
+        -- booni.pos = randomPosition()
+        booni.pos = Number3(362.5, i * 10.0 + 292.5 + settings.camera.altitude * Map.Scale.Y, 157.5)
+        booni.target = Number3(362.5, 292.5 + settings.camera.altitude * Map.Scale.Y, 157.5)
+
         booni.target = randomPosition()
         cpuBoonies[i] = booni
     end
@@ -221,6 +236,15 @@ updateBooni = function(booni, name, dt)
     end
 end
 
+function updateBooniAI(booni, index, dt)
+    if booni.ai.idleTime < 0 then
+        booni.target = randomPosition()
+        booni.target = Number3(math.random(0, Map.Width), Map.Height + 5, math.random(0, Map.Depth)) * Map.Scale
+        booni.ai.idleTime = 5
+    end
+    booni.ai.idleTime = booni.ai.idleTime - dt
+end
+
 -- ******************************* Glow **************************************
 
 function newGlows(count, size)
@@ -246,19 +270,6 @@ function newGlows(count, size)
         glows[i] = glow
     end
     return glows
-end
-
-function newPlayersList()
-    playersListLabels = {}
-    for i = 1, 10 do
-        playersListLabels[i] = Label("❤❤❤", Anchor.Right, Anchor.Top)
-    end
-end
-
-function updatePlayersList()
-    for i = 1, 10 do
-        playersListLabels[i].Text = "Player " .. i
-    end
 end
 
 checkForPlayers = function(dt)
@@ -410,25 +421,10 @@ Client.DidReceiveEvent = function(e)
     end
 end
 
--- ***************************************** UTILS ****************************
-
-dump = function(obj)
-    print("[" .. tostring(obj) .. "]")
-    for key, value in pairs(obj) do
-        print("  " .. key .. ": ", value)
-    end
-end
-
-function randomPosition()
-    -- return Number3(math.random(0, Map.Width * Map.Scale.X), 292.5 + settings.camera.altitude * Map.Scale.Y,
-    --     math.random(0, Map.Depth * Map.Scale.Z))
-    return Number3(math.random(0, Map.Width), math.random(0, Map.Height), math.random(0, Map.Depth))
-end
-
 -- ******************************* UI *****************************************
 
 function newUI()
-    local cameraDistance = 100
+    local cameraDistance = 10
     local ui = {}
     ui.waiting = Shape(Items.michak.waiting)
     ui.go = Shape(Items.michak.go)
@@ -451,8 +447,30 @@ function newUI()
     World:AddChild(selector)
     Pointer:Show()
     UI.Crosshair = false
+
     newPlayersList()
+    newControlButtons()
     return ui
+end
+
+function newControlButtons()
+    cameraButton = Button("Camera", Anchor.Left, Anchor.Top)
+    cameraButton.OnPress = function()
+        print("camera pressed")
+    end
+end
+
+function newPlayersList()
+    playersListLabels = {}
+    for i = 1, 10 do
+        playersListLabels[i] = Label("❤❤❤", Anchor.Right, Anchor.Top)
+    end
+end
+
+function updatePlayersList()
+    for i = 1, 10 do
+        playersListLabels[i].Text = "Player " .. i
+    end
 end
 
 function updateUI()
@@ -487,3 +505,23 @@ function updateSelectorShape(impact)
 
     selector.Position = Map:BlockToWorld(coords)
 end
+
+-- ***************************************** UTILS ****************************
+
+dump = function(obj)
+    print("[" .. tostring(obj) .. "]")
+    for key, value in pairs(obj) do
+        print("  " .. key .. ": ", value)
+    end
+end
+
+function randomPosition()
+    -- return Number3(math.random(0, Map.Width * Map.Scale.X), 292.5 + settings.camera.altitude * Map.Scale.Y,
+    --     math.random(0, Map.Depth * Map.Scale.Z))
+    return Number3(math.random(0, Map.Width), math.random(0, Map.Height), math.random(0, Map.Depth))
+end
+
+function mapCenter()
+    return Number3(Map.Width * 0.5, Map.Height + 10, Map.Depth * 0.5) * Map.Scale
+end
+
