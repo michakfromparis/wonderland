@@ -8,6 +8,7 @@ Config = {
 
 settings = {
     debug = {
+        logEnabled = true,
         showColliders = false
     },
     camera = {
@@ -18,6 +19,9 @@ settings = {
     player = {
         hidden = true,
         physics = false
+    },
+    multi = {
+        maxPlayers = 16
     },
     map = {
         timeCycle = false
@@ -56,7 +60,7 @@ Client.OnStart = function()
     cpuBoonies = {}
     glows = newGlows(200, 2.0)
     ui = newUI()
-    newCPUBoonies(10)
+    newCPUBoonies(15)
 end
 
 Client.Tick = function(dt)
@@ -69,12 +73,7 @@ Client.Tick = function(dt)
         updateBooniAI(booni, index, dt)
         updateBooni(booni, index, dt)
     end
-    if dt > 1 then
-        for i = 1, #glows do
-            glows[i].Physics = false
-        end
-    end
-    if playerBooni ~= mil then
+    if playerBooni ~= nil then
         -- Camera.SetModeThirdPerson()
         local distance = 100
         -- Camera:SetModeSatellite(Camera, Player, 10)
@@ -100,12 +99,10 @@ end
 
 function booniCollidedWithGlow(booni, glow)
     if booni ~= nil then
-        print("booni", booni)
-        dump(booni)
+        -- dump(booni)
         booni.score = booni.score + settings.score.glow
-        print("booni score: ", booni.score)
     else
-        print("Error: No booni")
+        logError("Error: No booni")
     end
     glow.Position = randomPosition()
 
@@ -114,7 +111,6 @@ end
 -- ******************************* BOONI **************************************
 
 function newBooni(player)
-    print("new Booni")
     local booni = {}
     booni.ai = {
         idleTime = 5
@@ -430,11 +426,12 @@ function newUI()
     local ui = {}
     ui.waiting = Shape(Items.michak.waiting)
     ui.go = Shape(Items.michak.go)
-    ui.waiting.Position = Camera.Position - Camera.Forward * cameraDistance
-    ui.go.Position = Camera.Position - Camera.Forward * cameraDistance
     Camera:AddChild(ui.waiting)
-    Camera:AddChild(ui.go)
-
+    -- Camera:AddChild(ui.go)
+    ui.waiting.LocalPosition = -Camera.Forward * cameraDistance
+    -- ui.go.LocalPosition = -Camera.Forward * cameraDistance
+    log(ui.waiting)
+    log(ui.waiting:GetParent())
     selector = Object()
     selectorShape = Shape(Items.aduermael.selector)
     selectorShape.Scale = 0.5
@@ -470,9 +467,35 @@ function newPlayersList()
 end
 
 function updatePlayersList()
-    local allBoonies = concatTables(boonies, cpuBoonies)
+    allBoonies = {}
+    booniesCount = 0
+    for name, booni in pairs(boonies) do
+        allBoonies[booniesCount + 1] = {}
+        allBoonies[booniesCount + 1].name = booni.username
+        allBoonies[booniesCount + 1].score = booni.score
+        if name == Player.ID then
+            allBoonies[booniesCount + 1].color = {255, 0, 0}
+        else
+            allBoonies[booniesCount + 1].color = {255, 255, 255}
+        end
+        booniesCount = booniesCount + 1
+
+    end
+    for index, booni in ipairs(cpuBoonies) do
+        allBoonies[booniesCount + 1] = {}
+        allBoonies[booniesCount + 1].name = booni.username
+        allBoonies[booniesCount + 1].score = booni.score
+        allBoonies[booniesCount + 1].color = {192, 192, 192}
+        booniesCount = booniesCount + 1
+    end
+
+    function compare(a, b)
+        return a.score > b.score
+    end
+    table.sort(allBoonies, compare)
     for i = 1, #allBoonies do
-        playersListLabels[i].Text = allBoonies[i].username
+        playersListLabels[i].Text = string.format("%-10s%-s%6d", allBoonies[i].name, "|", allBoonies[i].score)
+        playersListLabels[i].TextColor = Color(allBoonies[i].color)
     end
 end
 
@@ -512,7 +535,7 @@ end
 
 -- ***************************************** UTILS ****************************
 
-dump = function(obj)
+function dump(obj)
     print("[" .. tostring(obj) .. "]")
     for key, value in pairs(obj) do
         print("  " .. key .. ": ", value)
@@ -545,7 +568,6 @@ function arrayConcat(...)
 end
 
 function randomPosition()
-    -- return Number3(math.random(0, Map.Width), math.random(0, Map.Height), math.random(0, Map.Depth))
     return Number3(math.random(0, Map.Width), Map.Height + settings.camera.altitude, math.random(0, Map.Depth)) *
                Map.Scale
 end
