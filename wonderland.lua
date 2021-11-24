@@ -9,6 +9,7 @@ Config = {
 settings = {
     debug = {
         logEnabled = true,
+        controls = true,
         showColliders = false
     },
     camera = {
@@ -48,14 +49,14 @@ state = {
 -- ******************************* ENUMS **************************************
 
 CameraMode {
-    Player = 1,
+    FitToScreen = 1,
     Top
 }
 
 -- ******************************* HOOKS **************************************
 
 Client.OnStart = function()
-    initialize()
+    initialize(CameraMode.FitToScreen)
     boonies = {}
     cpuBoonies = {}
     glows = newGlows(200, 2.0)
@@ -65,7 +66,7 @@ end
 
 Client.Tick = function(dt)
     checkForPlayers(dt)
-    updateUI()
+    updateUI(dt)
     for name, booni in pairs(boonies) do
         updateBooni(booni, name, dt)
     end
@@ -73,20 +74,44 @@ Client.Tick = function(dt)
         updateBooniAI(booni, index, dt)
         updateBooni(booni, index, dt)
     end
-    if playerBooni ~= nil then
-        -- Camera.SetModeThirdPerson()
-        local distance = 100
-        -- Camera:SetModeSatellite(Camera, Player, 10)
-        Camera.Rotation = {state.player.pitch, state.player.yaw, 0}
-        -- Camera.distanceFromTarget = playerBooni.score * 0.1
-        -- Camera.DistanceFromTarget = playerBooni.score * 0.1
-        Camera:FitToScreen(Player, 0.01, true)
+    updateCamera(dt)
+end
+
+-- ****************************** CAMERA **************************************
+
+function updateCameraFitToScreen(dt)
+    if playerBooni == nil then
+        logError("No camera target for FitToScreen camera mode")
+        return
     end
+    Camera:SetModeFree()
+    Camera.Rotation = {state.player.pitch, state.player.yaw, 0}
+    Camera:FitToScreen(playerBooni.shape, 1.0, true)
+end
+
+function updateCameraThirdPerson(dt)
+    Camera.SetModeThirdPerson()
+    Camera.Rotation = {state.player.pitch, state.player.yaw, 0}
 end
 
 -- ******************************* INIT ***************************************
 
-function initialize()
+function initialize(cameraMode)
+    switch(cameraMode, {
+        [1] = function()
+            log("CameraMode: FitToScreen")
+            updateCamera = updateCameraFitToScreen
+        end,
+        [2] = function()
+            log("CameraMode: Top")
+            updateCamera = updateCameraThirdPerson
+        end,
+        [3] = function()
+            log("CameraMode: 3rd Person")
+            updateCamera = updateCameraThirdPerson
+        end
+    })
+
     TimeCycle.On = settings.map.timeCycle
     Dev.DisplayColliders = settings.debug.showColliders
     Player.Physics = settings.player.physics
@@ -102,7 +127,7 @@ function booniCollidedWithGlow(booni, glow)
         -- dump(booni)
         booni.score = booni.score + settings.score.glow
     else
-        logError("Error: No booni")
+        logError("No booni")
     end
     glow.Position = randomPosition()
 
@@ -139,7 +164,7 @@ function newBooni(player)
     end
 
     booni.OnCollision = function(o1, o2)
-        print("shape col: ", o1, o2)
+        log("shape col: ", o1, o2)
         dump(o1)
         dump(o2)
         o2.Position = randomPosition()
@@ -150,7 +175,7 @@ function newBooni(player)
         booni.key = #cpuBoonies + 1
         cpuBoonies[booni.key] = booni
         booni.username = "cpu #" .. #cpuBoonies
-        print(booni.username .. " has entered the tag")
+        log(booni.username .. " has entered the tag")
     else
         booni.type = "player"
         booni.key = player.ID
@@ -252,7 +277,7 @@ function newGlows(count, size)
         local glow = Shape(Items.michak.glow)
         glow.Physics = true
         glow.OnCollision = function(o1, o2)
-            -- print("glow col")
+            -- log("glow col")
         end
         glow.key = i
         glow.Scale = size
@@ -272,8 +297,8 @@ end
 
 checkForPlayers = function(dt)
     if #boonies < 2 and dt % 50000 == 0 then
-        -- print("players count " .. #boonies)
-        -- print("waiting for players")
+        -- log("players count " .. #boonies)
+        -- log("waiting for players")
 
     else
     end
@@ -341,7 +366,7 @@ Pointer.Up = function(e)
             end
 
             target = Map:BlockToWorld(coords)
-            -- print("new target:", target)
+            -- log("new target:", target)
 
             local e = Event()
             e.action = "move"
@@ -364,7 +389,7 @@ Client.OnChat = function(msg)
 end
 
 Client.OnPlayerJoin = function(player)
-    print(player.Username .. "! Run for your life!")
+    log(player.Username .. "! Run for your life!")
     local booni = newBooni(player)
     if playerBooni == nil then
         playerBooni = booni
@@ -386,7 +411,7 @@ Client.OnPlayerLeave = function(player)
     end
 
     for playerID, booni in pairs(toDestroy) do
-        print("Player left:", booni.username)
+        log("Player left:", booni.username)
         destroyBooni(playerID)
     end
 end
@@ -399,7 +424,7 @@ Client.DidReceiveEvent = function(e)
         if booni == nil then
             return
         end
-        -- print("look forward")
+        -- log("look forward")
         -- booni.shape.Rotation = {0, math.pi, 0}
         -- booni.shape.Forward = Camera.Backward
         booni.target = Number3(e.targetX, e.targetY, e.targetZ)
@@ -415,7 +440,7 @@ Client.DidReceiveEvent = function(e)
         booni.shape:ClearTextBubble()
         booni.shape:TextBubble(e.msg, 86400, Color(0, 0, 0, 255), Color(255, 255, 255, 255), true)
 
-        print(e.Sender.Username .. ": " .. e.msg)
+        log(e.Sender.Username .. ": " .. e.msg)
     end
 end
 
@@ -448,14 +473,20 @@ function newUI()
     UI.Crosshair = false
 
     newPlayersList()
-    newControlButtons()
+    if settings.debug.controls then
+        newControlButtons()
+    end
     return ui
 end
 
 function newControlButtons()
     cameraButton = Button("Camera", Anchor.Left, Anchor.Top)
     cameraButton.OnPress = function()
-        print("camera pressed")
+        log("camera pressed")
+    end
+    growButton = Button("Grow", Anchor.Left, Anchor.Top)
+    growButton.OnPress = function()
+        booniCollidedWithGlow(booni)
     end
 end
 
@@ -474,9 +505,9 @@ function updatePlayersList()
         allBoonies[booniesCount + 1].name = booni.username
         allBoonies[booniesCount + 1].score = booni.score
         if name == Player.ID then
-            allBoonies[booniesCount + 1].color = {255, 0, 0}
+            allBoonies[booniesCount + 1].color = Color(255, 0, 0)
         else
-            allBoonies[booniesCount + 1].color = {255, 255, 255}
+            allBoonies[booniesCount + 1].color = Color(255, 255, 255)
         end
         booniesCount = booniesCount + 1
 
@@ -485,7 +516,7 @@ function updatePlayersList()
         allBoonies[booniesCount + 1] = {}
         allBoonies[booniesCount + 1].name = booni.username
         allBoonies[booniesCount + 1].score = booni.score
-        allBoonies[booniesCount + 1].color = {192, 192, 192}
+        allBoonies[booniesCount + 1].color = Color(192, 192, 192)
         booniesCount = booniesCount + 1
     end
 
@@ -494,13 +525,13 @@ function updatePlayersList()
     end
     table.sort(allBoonies, compare)
     for i = 1, #allBoonies do
-        playersListLabels[i].Text = string.format("%-10s%-s%6d", allBoonies[i].name, "|", allBoonies[i].score)
-        playersListLabels[i].TextColor = Color(allBoonies[i].color)
+        playersListLabels[i].Text = string.format("%-10s%-s%7d", allBoonies[i].name, "|", allBoonies[i].score)
+        playersListLabels[i].TextColor = allBoonies[i].color
     end
 end
 
-function updateUI()
-    updatePlayersList()
+function updateUI(dt)
+    updatePlayersList(dt)
 end
 
 function updateSelectorShape(impact)
@@ -536,9 +567,9 @@ end
 -- ***************************************** UTILS ****************************
 
 function dump(obj)
-    print("[" .. tostring(obj) .. "]")
+    log("[" .. tostring(obj) .. "]")
     for key, value in pairs(obj) do
-        print("  " .. key .. ": ", value)
+        log("  " .. key .. ": ", value)
     end
 end
 
@@ -549,7 +580,7 @@ function log(...)
 end
 
 function logError(...)
-    log(...)
+    log("Error: ", ...)
 end
 
 function arrayConcat(...)
@@ -566,6 +597,17 @@ function arrayConcat(...)
     end
     return t
 end
+
+switch = function(param, case_table)
+    local case = case_table[param]
+    if case then
+        return case()
+    end
+    local def = case_table['default']
+    return def and def() or nil
+end
+
+-- ******************************** 3D TOOLS **********************************
 
 function randomPosition()
     return Number3(math.random(0, Map.Width), Map.Height + settings.camera.altitude, math.random(0, Map.Depth)) *
